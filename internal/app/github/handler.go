@@ -22,7 +22,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	github := r.Group("/github")
 	{
 		github.POST("/webhook", h.HandleWebhook)
-		
+
 		authenticated := github.Group("")
 		authenticated.Use(middleware.Auth())
 		{
@@ -67,7 +67,7 @@ func (h *Handler) GetInstallations(c *gin.Context) {
 
 func (h *Handler) GetRepositories(c *gin.Context) {
 	installationID := c.Param("id")
-	
+
 	repositories, err := h.service.GetRepositories(c.Request.Context(), installationID)
 	if err != nil {
 		c.Error(err)

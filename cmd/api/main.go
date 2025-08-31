@@ -4,9 +4,9 @@ import (
 	"log"
 
 	"github.com/team-xquare/deployment-platform/internal/app/auth"
+	"github.com/team-xquare/deployment-platform/internal/app/github"
 	"github.com/team-xquare/deployment-platform/internal/app/project"
 	"github.com/team-xquare/deployment-platform/internal/app/user"
-	"github.com/team-xquare/deployment-platform/internal/app/github"
 	"github.com/team-xquare/deployment-platform/internal/pkg/config"
 	"github.com/team-xquare/deployment-platform/internal/pkg/db/mysql"
 	"github.com/team-xquare/deployment-platform/internal/pkg/db/redis"

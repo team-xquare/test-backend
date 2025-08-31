@@ -13,11 +13,11 @@ type Project struct {
 }
 
 type Application struct {
-	Name      string            `yaml:"name" json:"name"`
-	Tier      string            `yaml:"tier" json:"tier"`
-	GitHub    *GitHubConfig     `yaml:"github,omitempty" json:"github,omitempty"`
-	Build     *BuildConfig      `yaml:"build,omitempty" json:"build,omitempty"`
-	Endpoints []EndpointConfig  `yaml:"endpoints,omitempty" json:"endpoints,omitempty"`
+	Name      string           `yaml:"name" json:"name"`
+	Tier      string           `yaml:"tier" json:"tier"`
+	GitHub    *GitHubConfig    `yaml:"github,omitempty" json:"github,omitempty"`
+	Build     *BuildConfig     `yaml:"build,omitempty" json:"build,omitempty"`
+	Endpoints []EndpointConfig `yaml:"endpoints,omitempty" json:"endpoints,omitempty"`
 }
 
 type GitHubConfig struct {
@@ -30,18 +30,18 @@ type GitHubConfig struct {
 }
 
 type BuildConfig struct {
-	Gradle  *GradleBuild  `yaml:"gradle,omitempty" json:"gradle,omitempty"`
-	NodeJS  *NodeJSBuild  `yaml:"nodejs,omitempty" json:"nodejs,omitempty"`
-	React   *ReactBuild   `yaml:"react,omitempty" json:"react,omitempty"`
-	Vite    *ViteBuild    `yaml:"vite,omitempty" json:"vite,omitempty"`
-	Vue     *VueBuild     `yaml:"vue,omitempty" json:"vue,omitempty"`
-	NextJS  *NextJSBuild  `yaml:"nextjs,omitempty" json:"nextjs,omitempty"`
-	Go      *GoBuild      `yaml:"go,omitempty" json:"go,omitempty"`
-	Rust    *RustBuild    `yaml:"rust,omitempty" json:"rust,omitempty"`
-	Maven   *MavenBuild   `yaml:"maven,omitempty" json:"maven,omitempty"`
-	Django  *DjangoBuild  `yaml:"django,omitempty" json:"django,omitempty"`
-	Flask   *FlaskBuild   `yaml:"flask,omitempty" json:"flask,omitempty"`
-	Docker  *DockerBuild  `yaml:"docker,omitempty" json:"docker,omitempty"`
+	Gradle *GradleBuild `yaml:"gradle,omitempty" json:"gradle,omitempty"`
+	NodeJS *NodeJSBuild `yaml:"nodejs,omitempty" json:"nodejs,omitempty"`
+	React  *ReactBuild  `yaml:"react,omitempty" json:"react,omitempty"`
+	Vite   *ViteBuild   `yaml:"vite,omitempty" json:"vite,omitempty"`
+	Vue    *VueBuild    `yaml:"vue,omitempty" json:"vue,omitempty"`
+	NextJS *NextJSBuild `yaml:"nextjs,omitempty" json:"nextjs,omitempty"`
+	Go     *GoBuild     `yaml:"go,omitempty" json:"go,omitempty"`
+	Rust   *RustBuild   `yaml:"rust,omitempty" json:"rust,omitempty"`
+	Maven  *MavenBuild  `yaml:"maven,omitempty" json:"maven,omitempty"`
+	Django *DjangoBuild `yaml:"django,omitempty" json:"django,omitempty"`
+	Flask  *FlaskBuild  `yaml:"flask,omitempty" json:"flask,omitempty"`
+	Docker *DockerBuild `yaml:"docker,omitempty" json:"docker,omitempty"`
 }
 
 type GradleBuild struct {

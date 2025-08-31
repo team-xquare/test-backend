@@ -1,8 +1,8 @@
 package auth
 
 type LoginResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken  string   `json:"access_token"`
+	RefreshToken string   `json:"refresh_token"`
 	User         UserInfo `json:"user"`
 }
 

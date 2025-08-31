@@ -27,7 +27,7 @@ func (r *githubRepository) SaveInstallation(ctx context.Context, installation *g
         updated_at = CURRENT_TIMESTAMP
     `
 
-	result, err := r.db.ExecContext(ctx, query, 
+	result, err := r.db.ExecContext(ctx, query,
 		installation.InstallationID,
 		installation.UserID,
 		installation.AccountLogin,

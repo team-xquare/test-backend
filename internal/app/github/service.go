@@ -22,7 +22,7 @@ type Service struct {
 
 func NewService(repo Repository) *Service {
 	var client *github.Client
-	
+
 	if config.AppConfig.GitHubToken != "" {
 		ts := oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: config.AppConfig.GitHubToken},
@@ -32,7 +32,7 @@ func NewService(repo Repository) *Service {
 	} else {
 		client = github.NewClient(nil)
 	}
-	
+
 	return &Service{
 		repo:   repo,
 		client: client,
@@ -80,7 +80,7 @@ func (s *Service) GetUserInstallations(ctx context.Context, userID uint) ([]*Ins
 
 func (s *Service) handleInstallationCreated(ctx context.Context, event WebhookEvent) error {
 	installation := event.Installation
-	
+
 	installationIDFloat, ok := installation["id"].(float64)
 	if !ok {
 		return errors.BadRequest("Invalid installation ID")
@@ -115,7 +115,7 @@ func (s *Service) handleInstallationCreated(ctx context.Context, event WebhookEv
 
 func (s *Service) handleInstallationDeleted(ctx context.Context, event WebhookEvent) error {
 	installation := event.Installation
-	
+
 	installationIDFloat, ok := installation["id"].(float64)
 	if !ok {
 		return errors.BadRequest("Invalid installation ID")
@@ -167,7 +167,7 @@ func (s *Service) GetRepositories(ctx context.Context, installationID string) ([
 	opts := &github.RepositoryListOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
-	
+
 	var allRepos []*GitHubRepo
 	for {
 		repos, resp, err := s.client.Repositories.List(ctx, "", opts)

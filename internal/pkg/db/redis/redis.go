@@ -10,7 +10,7 @@ import (
 
 func NewConnection() (*redis.Client, error) {
 	db, _ := strconv.Atoi(config.AppConfig.RedisDB)
-	
+
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.AppConfig.RedisHost + ":" + config.AppConfig.RedisPort,
 		Password: config.AppConfig.RedisPassword,

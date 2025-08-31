@@ -6,6 +6,6 @@ CREATE TABLE IF NOT EXISTS projects (
     config_yaml TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE,
     UNIQUE KEY unique_owner_name (owner_id, name)
 );
