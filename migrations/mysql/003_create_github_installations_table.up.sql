@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS github_installations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    installation_id VARCHAR(50) UNIQUE NOT NULL,
+    user_id INT NOT NULL,
+    account_login VARCHAR(255) NOT NULL,
+    account_type VARCHAR(50) NOT NULL,
+    permissions JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
