@@ -36,7 +36,7 @@ func Load() {
 		MySQLPort:        getEnv("MYSQL_PORT", "3306"),
 		MySQLDatabase:    getEnv("MYSQL_DATABASE", "deployment_platform"),
 		MySQLUsername:    getEnv("MYSQL_USERNAME", "root"),
-		MySQLPassword:    getEnv("MYSQL_PASSWORD", "password"),
+		MySQLPassword:    getEnv("MYSQL_PASSWORD", ""),
 		RedisHost:        getEnv("REDIS_HOST", "localhost"),
 		RedisPort:        getEnv("REDIS_PORT", "6379"),
 		RedisPassword:    getEnv("REDIS_PASSWORD", ""),
