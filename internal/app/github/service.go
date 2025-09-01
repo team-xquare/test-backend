@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/google/go-github/v66/github"
@@ -157,7 +156,6 @@ func (s *Service) TriggerGitHubAction(ctx context.Context, owner, repo string, p
 		return errors.Internal("Failed to trigger GitHub Action: " + err.Error())
 	}
 
-	fmt.Printf("Successfully triggered GitHub Action for %s/%s with event type: config-api\n", owner, repo)
 	return nil
 }
 

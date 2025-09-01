@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/team-xquare/deployment-platform/internal/app/addon"
+	"github.com/team-xquare/deployment-platform/internal/app/application"
 	"github.com/team-xquare/deployment-platform/internal/app/auth"
 	"github.com/team-xquare/deployment-platform/internal/app/github"
 	"github.com/team-xquare/deployment-platform/internal/app/project"
@@ -34,16 +36,22 @@ func main() {
 	userRepo := mysql.NewUserRepository(mysqlDB)
 	projectRepo := mysql.NewProjectRepository(mysqlDB)
 	githubRepo := mysql.NewGitHubRepository(mysqlDB)
+	applicationRepo := mysql.NewApplicationRepository(mysqlDB)
+	addonRepo := mysql.NewAddonRepository(mysqlDB)
 
 	authService := auth.NewService(authRepo, userRepo)
 	userService := user.NewService(userRepo)
 	projectService := project.NewService(projectRepo, githubRepo)
 	githubService := github.NewService(githubRepo)
+	applicationService := application.NewService(applicationRepo)
+	addonService := addon.NewService(addonRepo)
 
 	authHandler := auth.NewHandler(authService)
 	userHandler := user.NewHandler(userService)
 	projectHandler := project.NewHandler(projectService)
 	githubHandler := github.NewHandler(githubService)
+	applicationHandler := application.NewHandler(applicationService)
+	addonHandler := addon.NewHandler(addonService)
 
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -57,6 +65,8 @@ func main() {
 		userHandler.RegisterRoutes(api)
 		projectHandler.RegisterRoutes(api)
 		githubHandler.RegisterRoutes(api)
+		applicationHandler.RegisterRoutes(api)
+		addonHandler.RegisterRoutes(api)
 	}
 
 	log.Printf("Starting server on port %s", config.AppConfig.AppPort)

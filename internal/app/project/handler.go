@@ -25,9 +25,8 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		projects.POST("", h.CreateProject)
 		projects.GET("", h.GetProjects)
 		projects.GET("/:id", h.GetProject)
+		projects.PUT("/:id", h.UpdateProject)
 		projects.DELETE("/:id", h.DeleteProject)
-		projects.POST("/:id/applications", h.DeployApplication)
-		projects.POST("/:id/addons", h.DeployAddon)
 	}
 }
 
@@ -50,7 +49,7 @@ func (h *Handler) CreateProject(c *gin.Context) {
 
 func (h *Handler) GetProjects(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	projects, err := h.service.GetProjects(c.Request.Context(), userID)
+	projects, err := h.service.GetUserProjects(c.Request.Context(), userID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -94,7 +93,7 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Project deleted successfully"})
 }
 
-func (h *Handler) DeployApplication(c *gin.Context) {
+func (h *Handler) UpdateProject(c *gin.Context) {
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
@@ -102,40 +101,18 @@ func (h *Handler) DeployApplication(c *gin.Context) {
 		return
 	}
 
-	var req DeployApplicationRequest
+	var req UpdateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(errors.BadRequest("Invalid request format"))
 		return
 	}
 
 	userID := c.GetUint("user_id")
-	if err := h.service.DeployApplication(c.Request.Context(), userID, uint(projectID), req); err != nil {
-		c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Application deployment initiated"})
-}
-
-func (h *Handler) DeployAddon(c *gin.Context) {
-	projectIDStr := c.Param("id")
-	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
+	project, err := h.service.UpdateProject(c.Request.Context(), userID, uint(projectID), req)
 	if err != nil {
-		c.Error(errors.BadRequest("Invalid project ID"))
-		return
-	}
-
-	var req DeployAddonRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(errors.BadRequest("Invalid request format"))
-		return
-	}
-
-	userID := c.GetUint("user_id")
-	if err := h.service.DeployAddon(c.Request.Context(), userID, uint(projectID), req); err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Addon deployment initiated"})
+	c.JSON(http.StatusOK, project)
 }
