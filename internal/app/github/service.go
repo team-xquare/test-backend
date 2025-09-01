@@ -208,12 +208,28 @@ func (s *Service) LinkInstallationToUser(ctx context.Context, userID uint, insta
 		return nil
 	}
 
-	// Verify installation exists
+	// Check if installation exists, if not create a basic one
 	_, err = s.repo.FindByInstallationID(ctx, installationID)
 	if err != nil {
-		return err
+		// If installation not found, create a basic installation record
+		if appErr, ok := err.(*errors.AppError); ok && appErr.StatusCode == 404 {
+			installationData := &Installation{
+				InstallationID: installationID,
+				AccountLogin:   "unknown", // Will be updated when webhook comes
+				AccountType:    "User",
+				Permissions:    "{}",
+			}
+			
+			// Save the basic installation
+			if saveErr := s.repo.SaveInstallation(ctx, installationData); saveErr != nil {
+				return saveErr
+			}
+		} else {
+			return err
+		}
 	}
 
 	// Link user to installation
 	return s.repo.LinkUserToInstallation(ctx, userID, installationID)
 }
+
