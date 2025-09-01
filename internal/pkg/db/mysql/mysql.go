@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/team-xquare/deployment-platform/internal/pkg/config"
 
@@ -62,7 +63,8 @@ func runMigrations(db *sql.DB) error {
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to run migrations: %w", err)
+		log.Printf("DB Error: %v", err)
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	return nil
