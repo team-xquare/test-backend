@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	}
 
 	// Project-specific application routes
-	projects := r.Group("/projects/:projectId/applications")
+	projects := r.Group("/projects/:id/applications")
 	projects.Use(middleware.Auth())
 	{
 		projects.GET("", h.GetApplicationsByProject)
@@ -36,7 +36,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateApplication(c *gin.Context) {
-	projectIDStr := c.Param("projectId")
+	projectIDStr := c.Param("id")
 	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
 		c.Error(errors.BadRequest("Invalid project ID"))
@@ -80,7 +80,7 @@ func (h *Handler) GetApplication(c *gin.Context) {
 }
 
 func (h *Handler) GetApplicationsByProject(c *gin.Context) {
-	projectIDStr := c.Param("projectId")
+	projectIDStr := c.Param("id")
 	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
 		c.Error(errors.BadRequest("Invalid project ID"))

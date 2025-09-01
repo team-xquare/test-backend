@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	}
 
 	// Project-specific addon routes
-	projects := r.Group("/projects/:projectId/addons")
+	projects := r.Group("/projects/:id/addons")
 	projects.Use(middleware.Auth())
 	{
 		projects.GET("", h.GetAddonsByProject)
@@ -36,7 +36,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateAddon(c *gin.Context) {
-	projectIDStr := c.Param("projectId")
+	projectIDStr := c.Param("id")
 	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
 		c.Error(errors.BadRequest("Invalid project ID"))
@@ -80,7 +80,7 @@ func (h *Handler) GetAddon(c *gin.Context) {
 }
 
 func (h *Handler) GetAddonsByProject(c *gin.Context) {
-	projectIDStr := c.Param("projectId")
+	projectIDStr := c.Param("id")
 	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
 		c.Error(errors.BadRequest("Invalid project ID"))
