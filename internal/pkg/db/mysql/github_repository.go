@@ -18,8 +18,8 @@ func NewGitHubRepository(db *sql.DB) github.Repository {
 
 func (r *githubRepository) SaveInstallation(ctx context.Context, installation *github.Installation) error {
 	query := `
-        INSERT INTO github_installations (installation_id, user_id, account_login, account_type, permissions)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO github_installations (installation_id, account_login, account_type, permissions)
+        VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
         account_login = VALUES(account_login),
         account_type = VALUES(account_type),
@@ -29,7 +29,6 @@ func (r *githubRepository) SaveInstallation(ctx context.Context, installation *g
 
 	result, err := r.db.ExecContext(ctx, query,
 		installation.InstallationID,
-		installation.UserID,
 		installation.AccountLogin,
 		installation.AccountType,
 		installation.Permissions,
@@ -50,27 +49,25 @@ func (r *githubRepository) SaveInstallation(ctx context.Context, installation *g
 }
 
 func (r *githubRepository) FindByInstallationID(ctx context.Context, installationID string) (*github.Installation, error) {
-	var installation github.Installation
 	query := `
-        SELECT id, installation_id, user_id, account_login, account_type, permissions, created_at, updated_at
+        SELECT id, installation_id, account_login, account_type, permissions, created_at, updated_at
         FROM github_installations WHERE installation_id = ?
     `
 
+	var installation github.Installation
 	err := r.db.QueryRowContext(ctx, query, installationID).Scan(
 		&installation.ID,
 		&installation.InstallationID,
-		&installation.UserID,
 		&installation.AccountLogin,
 		&installation.AccountType,
 		&installation.Permissions,
 		&installation.CreatedAt,
 		&installation.UpdatedAt,
 	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.NotFound("GitHub installation not found")
+		}
 		return nil, errors.Internal("Failed to get GitHub installation")
 	}
 
@@ -79,8 +76,10 @@ func (r *githubRepository) FindByInstallationID(ctx context.Context, installatio
 
 func (r *githubRepository) FindByUserID(ctx context.Context, userID uint) ([]*github.Installation, error) {
 	query := `
-        SELECT id, installation_id, user_id, account_login, account_type, permissions, created_at, updated_at
-        FROM github_installations WHERE user_id = ?
+        SELECT gi.id, gi.installation_id, gi.account_login, gi.account_type, gi.permissions, gi.created_at, gi.updated_at
+        FROM github_installations gi
+        INNER JOIN user_github_installations ugi ON gi.installation_id = ugi.installation_id
+        WHERE ugi.user_id = ?
     `
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -95,7 +94,6 @@ func (r *githubRepository) FindByUserID(ctx context.Context, userID uint) ([]*gi
 		err := rows.Scan(
 			&installation.ID,
 			&installation.InstallationID,
-			&installation.UserID,
 			&installation.AccountLogin,
 			&installation.AccountType,
 			&installation.Permissions,
@@ -112,9 +110,21 @@ func (r *githubRepository) FindByUserID(ctx context.Context, userID uint) ([]*gi
 }
 
 func (r *githubRepository) DeleteByInstallationID(ctx context.Context, installationID string) error {
-	query := "DELETE FROM github_installations WHERE installation_id = ?"
+	// Start transaction to delete from both tables
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return errors.Internal("Failed to start transaction")
+	}
+	defer tx.Rollback()
 
-	result, err := r.db.ExecContext(ctx, query, installationID)
+	// Delete user links first
+	_, err = tx.ExecContext(ctx, "DELETE FROM user_github_installations WHERE installation_id = ?", installationID)
+	if err != nil {
+		return errors.Internal("Failed to delete GitHub installation user links")
+	}
+
+	// Delete installation
+	result, err := tx.ExecContext(ctx, "DELETE FROM github_installations WHERE installation_id = ?", installationID)
 	if err != nil {
 		return errors.Internal("Failed to delete GitHub installation")
 	}
@@ -128,5 +138,39 @@ func (r *githubRepository) DeleteByInstallationID(ctx context.Context, installat
 		return errors.NotFound("GitHub installation not found")
 	}
 
+	if err = tx.Commit(); err != nil {
+		return errors.Internal("Failed to commit transaction")
+	}
+
 	return nil
+}
+
+func (r *githubRepository) LinkUserToInstallation(ctx context.Context, userID uint, installationID string) error {
+	query := `
+        INSERT INTO user_github_installations (user_id, installation_id)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE created_at = created_at
+    `
+
+	_, err := r.db.ExecContext(ctx, query, userID, installationID)
+	if err != nil {
+		return errors.Internal("Failed to link user to GitHub installation")
+	}
+
+	return nil
+}
+
+func (r *githubRepository) IsUserLinkedToInstallation(ctx context.Context, userID uint, installationID string) (bool, error) {
+	query := "SELECT 1 FROM user_github_installations WHERE user_id = ? AND installation_id = ?"
+
+	var exists int
+	err := r.db.QueryRowContext(ctx, query, userID, installationID).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, errors.Internal("Failed to check user installation link")
+	}
+
+	return true, nil
 }

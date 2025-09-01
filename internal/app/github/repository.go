@@ -7,4 +7,6 @@ type Repository interface {
 	FindByInstallationID(ctx context.Context, installationID string) (*Installation, error)
 	FindByUserID(ctx context.Context, userID uint) ([]*Installation, error)
 	DeleteByInstallationID(ctx context.Context, installationID string) error
+	LinkUserToInstallation(ctx context.Context, userID uint, installationID string) error
+	IsUserLinkedToInstallation(ctx context.Context, userID uint, installationID string) (bool, error)
 }

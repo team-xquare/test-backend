@@ -196,3 +196,26 @@ func (s *Service) GetRepositories(ctx context.Context, installationID string) ([
 
 	return allRepos, nil
 }
+
+// LinkInstallationToUser links a GitHub installation to a specific user
+func (s *Service) LinkInstallationToUser(ctx context.Context, userID uint, installationID string) error {
+	// Check if user is already linked to this installation
+	isLinked, err := s.repo.IsUserLinkedToInstallation(ctx, userID, installationID)
+	if err != nil {
+		return err
+	}
+
+	if isLinked {
+		// Already linked
+		return nil
+	}
+
+	// Verify installation exists
+	_, err = s.repo.FindByInstallationID(ctx, installationID)
+	if err != nil {
+		return err
+	}
+
+	// Link user to installation
+	return s.repo.LinkUserToInstallation(ctx, userID, installationID)
+}

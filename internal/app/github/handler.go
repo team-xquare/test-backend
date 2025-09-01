@@ -28,6 +28,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		{
 			authenticated.GET("/installations", h.GetInstallations)
 			authenticated.GET("/installations/:id/repositories", h.GetRepositories)
+			authenticated.POST("/installations/:id/link", h.LinkInstallation)
 		}
 	}
 }
@@ -75,4 +76,17 @@ func (h *Handler) GetRepositories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, repositories)
+}
+
+func (h *Handler) LinkInstallation(c *gin.Context) {
+	installationID := c.Param("id")
+	userID := c.GetUint("user_id")
+
+	err := h.service.LinkInstallationToUser(c.Request.Context(), userID, installationID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Installation linked successfully"})
 }
