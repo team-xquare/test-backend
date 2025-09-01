@@ -2,14 +2,20 @@ package addon
 
 import (
 	"context"
+
+	"github.com/team-xquare/deployment-platform/internal/app/github"
 )
 
 type Service struct {
-	repo Repository
+	repo      Repository
+	githubSvc *github.Service
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, githubSvc *github.Service) *Service {
+	return &Service{
+		repo:      repo,
+		githubSvc: githubSvc,
+	}
 }
 
 func (s *Service) CreateAddon(ctx context.Context, projectID uint, req CreateAddonRequest) (*AddonResponse, error) {
@@ -19,12 +25,14 @@ func (s *Service) CreateAddon(ctx context.Context, projectID uint, req CreateAdd
 		Type:      req.Type,
 		Tier:      req.Tier,
 		Storage:   req.Storage,
-		Config:    req.Config,
 	}
 
 	if err := s.repo.Save(ctx, addon); err != nil {
 		return nil, err
 	}
+
+	// Trigger GitHub Actions workflow for addon deployment
+	go s.triggerAddonDeployment(addon, "apply")
 
 	return s.toResponse(addon), nil
 }
@@ -63,7 +71,6 @@ func (s *Service) UpdateAddon(ctx context.Context, id uint, req UpdateAddonReque
 	addon.Type = req.Type
 	addon.Tier = req.Tier
 	addon.Storage = req.Storage
-	addon.Config = req.Config
 
 	if err := s.repo.Save(ctx, addon); err != nil {
 		return nil, err
@@ -73,6 +80,14 @@ func (s *Service) UpdateAddon(ctx context.Context, id uint, req UpdateAddonReque
 }
 
 func (s *Service) DeleteAddon(ctx context.Context, id uint) error {
+	addon, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Trigger GitHub Actions workflow for addon removal
+	go s.triggerAddonDeployment(addon, "remove")
+
 	return s.repo.Delete(ctx, id)
 }
 
@@ -84,8 +99,35 @@ func (s *Service) toResponse(addon *Addon) *AddonResponse {
 		Type:      addon.Type,
 		Tier:      addon.Tier,
 		Storage:   addon.Storage,
-		Config:    addon.Config,
 		CreatedAt: addon.CreatedAt,
 		UpdatedAt: addon.UpdatedAt,
 	}
+}
+
+func (s *Service) triggerAddonDeployment(addon *Addon, action string) {
+	if s.githubSvc == nil {
+		return
+	}
+
+	// Use a default GitHub repo for addons (this would be configurable)
+	owner := "team-xquare"  // This should come from config
+	repo := "infrastructure-configs"  // This should come from config
+	
+	projectName := "project-" + string(rune(addon.ProjectID))
+	path := "projects/" + projectName + "/addons/" + addon.Name
+	
+	spec := map[string]interface{}{
+		"type":    addon.Type,
+		"tier":    addon.Tier,
+		"storage": addon.Storage,
+	}
+	
+	payload := github.ConfigAPIPayload{
+		Path:   path,
+		Action: action,
+		Spec:   spec,
+	}
+	
+	ctx := context.Background()
+	s.githubSvc.TriggerGitHubAction(ctx, owner, repo, payload)
 }

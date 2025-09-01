@@ -43,8 +43,8 @@ func main() {
 	userService := user.NewService(userRepo)
 	projectService := project.NewService(projectRepo, githubRepo)
 	githubService := github.NewService(githubRepo)
-	applicationService := application.NewService(applicationRepo)
-	addonService := addon.NewService(addonRepo)
+	applicationService := application.NewService(applicationRepo, githubService)
+	addonService := addon.NewService(addonRepo, githubService)
 
 	authHandler := auth.NewHandler(authService)
 	userHandler := user.NewHandler(userService)

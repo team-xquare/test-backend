@@ -23,7 +23,6 @@ type GitHubConfig struct {
 	Repo           string   `json:"repo"`
 	Branch         string   `json:"branch"`
 	InstallationID string   `json:"installationId"`
-	Hash           string   `json:"hash"`
 	TriggerPaths   []string `json:"triggerPaths,omitempty"`
 }
 

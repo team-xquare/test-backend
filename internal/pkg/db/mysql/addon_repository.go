@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 
 	"github.com/team-xquare/deployment-platform/internal/app/addon"
 	"github.com/team-xquare/deployment-platform/internal/pkg/utils/errors"
@@ -18,16 +17,14 @@ func NewAddonRepository(db *sql.DB) addon.Repository {
 }
 
 func (r *addonRepository) Save(ctx context.Context, addon *addon.Addon) error {
-	configJSON, _ := json.Marshal(addon.Config)
-
 	if addon.ID == 0 {
 		// Insert new addon
 		query := `
-			INSERT INTO addons (project_id, name, type, tier, storage, config)
-			VALUES (?, ?, ?, ?, ?, ?)
+			INSERT INTO addons (project_id, name, type, tier, storage)
+			VALUES (?, ?, ?, ?, ?)
 		`
 		result, err := r.db.ExecContext(ctx, query,
-			addon.ProjectID, addon.Name, addon.Type, addon.Tier, addon.Storage, string(configJSON),
+			addon.ProjectID, addon.Name, addon.Type, addon.Tier, addon.Storage,
 		)
 		if err != nil {
 			return errors.Internal("Failed to create addon")
@@ -42,11 +39,11 @@ func (r *addonRepository) Save(ctx context.Context, addon *addon.Addon) error {
 		// Update existing addon
 		query := `
 			UPDATE addons SET
-				name = ?, type = ?, tier = ?, storage = ?, config = ?, updated_at = CURRENT_TIMESTAMP
+				name = ?, type = ?, tier = ?, storage = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?
 		`
 		_, err := r.db.ExecContext(ctx, query,
-			addon.Name, addon.Type, addon.Tier, addon.Storage, string(configJSON), addon.ID,
+			addon.Name, addon.Type, addon.Tier, addon.Storage, addon.ID,
 		)
 		if err != nil {
 			return errors.Internal("Failed to update addon")
@@ -58,15 +55,14 @@ func (r *addonRepository) Save(ctx context.Context, addon *addon.Addon) error {
 
 func (r *addonRepository) FindByID(ctx context.Context, id uint) (*addon.Addon, error) {
 	query := `
-		SELECT id, project_id, name, type, tier, storage, config, created_at, updated_at
+		SELECT id, project_id, name, type, tier, storage, created_at, updated_at
 		FROM addons WHERE id = ?
 	`
 
 	var addon addon.Addon
-	var configJSON string
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&addon.ID, &addon.ProjectID, &addon.Name, &addon.Type, &addon.Tier, &addon.Storage, &configJSON,
+		&addon.ID, &addon.ProjectID, &addon.Name, &addon.Type, &addon.Tier, &addon.Storage,
 		&addon.CreatedAt, &addon.UpdatedAt,
 	)
 	if err != nil {
@@ -76,15 +72,12 @@ func (r *addonRepository) FindByID(ctx context.Context, id uint) (*addon.Addon, 
 		return nil, errors.Internal("Failed to get addon")
 	}
 
-	// Unmarshal JSON config
-	json.Unmarshal([]byte(configJSON), &addon.Config)
-
 	return &addon, nil
 }
 
 func (r *addonRepository) FindByProjectID(ctx context.Context, projectID uint) ([]*addon.Addon, error) {
 	query := `
-		SELECT id, project_id, name, type, tier, storage, config, created_at, updated_at
+		SELECT id, project_id, name, type, tier, storage, created_at, updated_at
 		FROM addons WHERE project_id = ?
 		ORDER BY created_at DESC
 	`
@@ -98,18 +91,14 @@ func (r *addonRepository) FindByProjectID(ctx context.Context, projectID uint) (
 	var addons []*addon.Addon
 	for rows.Next() {
 		var addon addon.Addon
-		var configJSON string
 
 		err := rows.Scan(
-			&addon.ID, &addon.ProjectID, &addon.Name, &addon.Type, &addon.Tier, &addon.Storage, &configJSON,
+			&addon.ID, &addon.ProjectID, &addon.Name, &addon.Type, &addon.Tier, &addon.Storage,
 			&addon.CreatedAt, &addon.UpdatedAt,
 		)
 		if err != nil {
 			return nil, errors.Internal("Failed to scan addon")
 		}
-
-		// Unmarshal JSON config
-		json.Unmarshal([]byte(configJSON), &addon.Config)
 
 		addons = append(addons, &addon)
 	}

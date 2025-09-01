@@ -13,7 +13,6 @@ type Application struct {
 	GitHubRepo           string   `json:"github_repo" db:"github_repo"`
 	GitHubBranch         string   `json:"github_branch" db:"github_branch"`
 	GitHubInstallationID string   `json:"github_installation_id" db:"github_installation_id"`
-	GitHubHash           string   `json:"github_hash" db:"github_hash"`
 	GitHubTriggerPaths   []string `json:"github_trigger_paths" db:"github_trigger_paths"`
 	
 	// Build Configuration

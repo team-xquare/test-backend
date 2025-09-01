@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS applications (
     github_repo VARCHAR(255),
     github_branch VARCHAR(100) DEFAULT 'main',
     github_installation_id VARCHAR(50),
-    github_hash VARCHAR(100),
     github_trigger_paths JSON,
     
     -- Build Configuration

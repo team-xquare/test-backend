@@ -3,14 +3,20 @@ package application
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/team-xquare/deployment-platform/internal/app/github"
 )
 
 type Service struct {
-	repo Repository
+	repo        Repository
+	githubSvc   *github.Service
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, githubSvc *github.Service) *Service {
+	return &Service{
+		repo:      repo,
+		githubSvc: githubSvc,
+	}
 }
 
 func (s *Service) CreateApplication(ctx context.Context, projectID uint, req CreateApplicationRequest) (*ApplicationResponse, error) {
@@ -28,7 +34,6 @@ func (s *Service) CreateApplication(ctx context.Context, projectID uint, req Cre
 		app.GitHubRepo = req.GitHub.Repo
 		app.GitHubBranch = req.GitHub.Branch
 		app.GitHubInstallationID = req.GitHub.InstallationID
-		app.GitHubHash = req.GitHub.Hash
 		app.GitHubTriggerPaths = req.GitHub.TriggerPaths
 	}
 
@@ -40,6 +45,11 @@ func (s *Service) CreateApplication(ctx context.Context, projectID uint, req Cre
 
 	if err := s.repo.Save(ctx, app); err != nil {
 		return nil, err
+	}
+
+	// Trigger GitHub Actions workflow for deployment
+	if req.GitHub != nil {
+		go s.triggerDeployment(app, "apply")
 	}
 
 	return s.toResponse(app), nil
@@ -85,14 +95,12 @@ func (s *Service) UpdateApplication(ctx context.Context, id uint, req UpdateAppl
 		app.GitHubRepo = req.GitHub.Repo
 		app.GitHubBranch = req.GitHub.Branch
 		app.GitHubInstallationID = req.GitHub.InstallationID
-		app.GitHubHash = req.GitHub.Hash
 		app.GitHubTriggerPaths = req.GitHub.TriggerPaths
 	} else {
 		app.GitHubOwner = ""
 		app.GitHubRepo = ""
 		app.GitHubBranch = ""
 		app.GitHubInstallationID = ""
-		app.GitHubHash = ""
 		app.GitHubTriggerPaths = nil
 	}
 
@@ -109,10 +117,29 @@ func (s *Service) UpdateApplication(ctx context.Context, id uint, req UpdateAppl
 		return nil, err
 	}
 
+	// Trigger GitHub Actions workflow for deployment update
+	if req.GitHub != nil || app.GitHubOwner != "" {
+		go s.triggerDeployment(app, "apply")
+	}
+
 	return s.toResponse(app), nil
 }
 
 func (s *Service) DeleteApplication(ctx context.Context, id uint) error {
+	app, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Trigger GitHub Actions workflow for removal before deleting
+	if app.GitHubOwner != "" {
+		go s.triggerDeployment(app, "remove")
+	}
+
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *Service) DeleteApplicationOld(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
@@ -134,7 +161,6 @@ func (s *Service) toResponse(app *Application) *ApplicationResponse {
 			Repo:           app.GitHubRepo,
 			Branch:         app.GitHubBranch,
 			InstallationID: app.GitHubInstallationID,
-			Hash:           app.GitHubHash,
 			TriggerPaths:   app.GitHubTriggerPaths,
 		}
 	}
@@ -224,4 +250,31 @@ func (s *Service) determineBuildType(build *BuildConfig) string {
 		}
 	}
 	return ""
+}
+
+func (s *Service) triggerDeployment(app *Application, action string) {
+	if s.githubSvc == nil || app.GitHubOwner == "" {
+		return
+	}
+
+	// Get project name (this would need to be passed or retrieved)
+	projectName := "project-" + string(rune(app.ProjectID))
+	path := "projects/" + projectName + "/applications/" + app.Name
+	
+	spec := map[string]interface{}{
+		"tier": app.Tier,
+	}
+	
+	if len(app.Endpoints) > 0 {
+		spec["endpoints"] = app.Endpoints
+	}
+	
+	payload := github.ConfigAPIPayload{
+		Path:   path,
+		Action: action,
+		Spec:   spec,
+	}
+	
+	ctx := context.Background()
+	s.githubSvc.TriggerGitHubAction(ctx, app.GitHubOwner, app.GitHubRepo, payload)
 }

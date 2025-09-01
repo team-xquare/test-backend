@@ -27,13 +27,13 @@ func (r *applicationRepository) Save(ctx context.Context, app *application.Appli
 		query := `
 			INSERT INTO applications (
 				project_id, name, tier, 
-				github_owner, github_repo, github_branch, github_installation_id, github_hash, github_trigger_paths,
+				github_owner, github_repo, github_branch, github_installation_id, github_trigger_paths,
 				build_type, build_config, endpoints
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := r.db.ExecContext(ctx, query,
 			app.ProjectID, app.Name, app.Tier,
-			app.GitHubOwner, app.GitHubRepo, app.GitHubBranch, app.GitHubInstallationID, app.GitHubHash, string(triggerPathsJSON),
+			app.GitHubOwner, app.GitHubRepo, app.GitHubBranch, app.GitHubInstallationID, string(triggerPathsJSON),
 			app.BuildType, string(buildConfigJSON), string(endpointsJSON),
 		)
 		if err != nil {
@@ -50,13 +50,13 @@ func (r *applicationRepository) Save(ctx context.Context, app *application.Appli
 		query := `
 			UPDATE applications SET
 				name = ?, tier = ?,
-				github_owner = ?, github_repo = ?, github_branch = ?, github_installation_id = ?, github_hash = ?, github_trigger_paths = ?,
+				github_owner = ?, github_repo = ?, github_branch = ?, github_installation_id = ?, github_trigger_paths = ?,
 				build_type = ?, build_config = ?, endpoints = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?
 		`
 		_, err := r.db.ExecContext(ctx, query,
 			app.Name, app.Tier,
-			app.GitHubOwner, app.GitHubRepo, app.GitHubBranch, app.GitHubInstallationID, app.GitHubHash, string(triggerPathsJSON),
+			app.GitHubOwner, app.GitHubRepo, app.GitHubBranch, app.GitHubInstallationID, string(triggerPathsJSON),
 			app.BuildType, string(buildConfigJSON), string(endpointsJSON),
 			app.ID,
 		)
@@ -71,7 +71,7 @@ func (r *applicationRepository) Save(ctx context.Context, app *application.Appli
 func (r *applicationRepository) FindByID(ctx context.Context, id uint) (*application.Application, error) {
 	query := `
 		SELECT id, project_id, name, tier,
-			github_owner, github_repo, github_branch, github_installation_id, github_hash, github_trigger_paths,
+			github_owner, github_repo, github_branch, github_installation_id, github_trigger_paths,
 			build_type, build_config, endpoints, created_at, updated_at
 		FROM applications WHERE id = ?
 	`
@@ -81,7 +81,7 @@ func (r *applicationRepository) FindByID(ctx context.Context, id uint) (*applica
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&app.ID, &app.ProjectID, &app.Name, &app.Tier,
-		&app.GitHubOwner, &app.GitHubRepo, &app.GitHubBranch, &app.GitHubInstallationID, &app.GitHubHash, &triggerPathsJSON,
+		&app.GitHubOwner, &app.GitHubRepo, &app.GitHubBranch, &app.GitHubInstallationID, &triggerPathsJSON,
 		&app.BuildType, &buildConfigJSON, &endpointsJSON, &app.CreatedAt, &app.UpdatedAt,
 	)
 	if err != nil {
@@ -102,7 +102,7 @@ func (r *applicationRepository) FindByID(ctx context.Context, id uint) (*applica
 func (r *applicationRepository) FindByProjectID(ctx context.Context, projectID uint) ([]*application.Application, error) {
 	query := `
 		SELECT id, project_id, name, tier,
-			github_owner, github_repo, github_branch, github_installation_id, github_hash, github_trigger_paths,
+			github_owner, github_repo, github_branch, github_installation_id, github_trigger_paths,
 			build_type, build_config, endpoints, created_at, updated_at
 		FROM applications WHERE project_id = ?
 		ORDER BY created_at DESC
@@ -121,7 +121,7 @@ func (r *applicationRepository) FindByProjectID(ctx context.Context, projectID u
 
 		err := rows.Scan(
 			&app.ID, &app.ProjectID, &app.Name, &app.Tier,
-			&app.GitHubOwner, &app.GitHubRepo, &app.GitHubBranch, &app.GitHubInstallationID, &app.GitHubHash, &triggerPathsJSON,
+			&app.GitHubOwner, &app.GitHubRepo, &app.GitHubBranch, &app.GitHubInstallationID, &triggerPathsJSON,
 			&app.BuildType, &buildConfigJSON, &endpointsJSON, &app.CreatedAt, &app.UpdatedAt,
 		)
 		if err != nil {
