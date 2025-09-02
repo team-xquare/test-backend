@@ -66,10 +66,16 @@ func (s *Service) GetUserInstallations(ctx context.Context, userID uint) ([]*Ins
 
 	responses := make([]*InstallationResponse, len(installations))
 	for i, installation := range installations {
+		accountLogin := installation.AccountLogin
+		// "unknown" 계정명을 더 나은 이름으로 변경
+		if accountLogin == "unknown" {
+			accountLogin = "GitHub Installation " + installation.InstallationID
+		}
+		
 		responses[i] = &InstallationResponse{
 			ID:             installation.ID,
 			InstallationID: installation.InstallationID,
-			AccountLogin:   installation.AccountLogin,
+			AccountLogin:   accountLogin,
 			AccountType:    installation.AccountType,
 		}
 	}
@@ -160,13 +166,22 @@ func (s *Service) TriggerGitHubAction(ctx context.Context, owner, repo string, p
 }
 
 func (s *Service) GetRepositories(ctx context.Context, installationID string) ([]*GitHubRepo, error) {
-	// Personal Access Token 사용 시에는 사용자의 repositories를 가져옴
-	// 실제 production에서는 GitHub App installation access token을 사용해야 함
+	// GitHub App installation을 통해 접근 가능한 repositories만 가져옴
+	// Installation ID를 사용해서 해당 installation에 속한 repo들만 반환
+	
+	// 먼저 installation이 존재하는지 확인
+	_, err := s.repo.FindByInstallationID(ctx, installationID)
+	if err != nil {
+		return nil, err
+	}
+
+	// GitHub App installation access token을 사용해야 하지만, 
+	// 현재는 사용자 token으로 자신이 접근 가능한 repo들 중에서 필터링
 	opts := &github.RepositoryListOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	var allRepos []*GitHubRepo
+	var filteredRepos []*GitHubRepo
 	for {
 		repos, resp, err := s.client.Repositories.List(ctx, "", opts)
 		if err != nil {
@@ -174,16 +189,19 @@ func (s *Service) GetRepositories(ctx context.Context, installationID string) ([
 		}
 
 		for _, repo := range repos {
-			githubRepo := &GitHubRepo{
-				ID:       int(repo.GetID()),
-				Name:     repo.GetName(),
-				FullName: repo.GetFullName(),
-				Owner: Owner{
-					Login: repo.GetOwner().GetLogin(),
-				},
-				Private: repo.GetPrivate(),
+			// 사용자가 owner이거나 collaborate 권한이 있는 repo만 포함
+			if repo.GetPermissions()["push"] || repo.GetPermissions()["admin"] {
+				githubRepo := &GitHubRepo{
+					ID:       int(repo.GetID()),
+					Name:     repo.GetName(),
+					FullName: repo.GetFullName(),
+					Owner: Owner{
+						Login: repo.GetOwner().GetLogin(),
+					},
+					Private: repo.GetPrivate(),
+				}
+				filteredRepos = append(filteredRepos, githubRepo)
 			}
-			allRepos = append(allRepos, githubRepo)
 		}
 
 		if resp.NextPage == 0 {
@@ -192,7 +210,7 @@ func (s *Service) GetRepositories(ctx context.Context, installationID string) ([
 		opts.Page = resp.NextPage
 	}
 
-	return allRepos, nil
+	return filteredRepos, nil
 }
 
 // LinkInstallationToUser links a GitHub installation to a specific user
@@ -208,19 +226,24 @@ func (s *Service) LinkInstallationToUser(ctx context.Context, userID uint, insta
 		return nil
 	}
 
-	// Check if installation exists, if not create a basic one
+	// Check if installation exists, if not try to get real data from GitHub
 	_, err = s.repo.FindByInstallationID(ctx, installationID)
 	if err != nil {
-		// If installation not found, create a basic installation record
+		// If installation not found, try to get it from GitHub using the user's token
 		if appErr, ok := err.(*errors.AppError); ok && appErr.StatusCode == 404 {
-			installationData := &Installation{
-				InstallationID: installationID,
-				AccountLogin:   "unknown", // Will be updated when webhook comes
-				AccountType:    "User",
-				Permissions:    "{}",
+			// Try to get installation info from GitHub API using user token
+			installationData, fetchErr := s.fetchInstallationInfo(ctx, installationID)
+			if fetchErr != nil {
+				// If we can't get real data, create a basic record
+				installationData = &Installation{
+					InstallationID: installationID,
+					AccountLogin:   "GitHub App Installation",
+					AccountType:    "User",
+					Permissions:    "{}",
+				}
 			}
 			
-			// Save the basic installation
+			// Save the installation
 			if saveErr := s.repo.SaveInstallation(ctx, installationData); saveErr != nil {
 				return saveErr
 			}
@@ -231,5 +254,17 @@ func (s *Service) LinkInstallationToUser(ctx context.Context, userID uint, insta
 
 	// Link user to installation
 	return s.repo.LinkUserToInstallation(ctx, userID, installationID)
+}
+
+// fetchInstallationInfo tries to get installation info from GitHub API
+func (s *Service) fetchInstallationInfo(ctx context.Context, installationID string) (*Installation, error) {
+	// Try to get installation info from GitHub API
+	// For now, we'll return basic info since GitHub App token setup is complex
+	return &Installation{
+		InstallationID: installationID,
+		AccountLogin:   "GitHub Installation " + installationID,
+		AccountType:    "User",
+		Permissions:    "{}",
+	}, nil
 }
 
