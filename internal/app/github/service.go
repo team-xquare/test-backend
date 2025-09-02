@@ -67,9 +67,18 @@ func (s *Service) GetUserInstallations(ctx context.Context, userID uint) ([]*Ins
 	responses := make([]*InstallationResponse, len(installations))
 	for i, installation := range installations {
 		accountLogin := installation.AccountLogin
-		// "unknown" 계정명을 더 나은 이름으로 변경
-		if accountLogin == "unknown" {
-			accountLogin = "GitHub Installation " + installation.InstallationID
+		
+		// "unknown"이거나 기본값인 경우 실제 GitHub owner name으로 업데이트 시도
+		if accountLogin == "unknown" || accountLogin == "GitHub App Installation" || 
+		   accountLogin == "GitHub Installation "+installation.InstallationID {
+			// 실제 GitHub owner name 추정
+			if realLogin, err := s.guessAccountLoginFromRepos(ctx); err == nil && realLogin != "" {
+				accountLogin = realLogin
+				// DB에도 업데이트 (비동기로)
+				go s.updateInstallationLogin(ctx, installation.InstallationID, realLogin)
+			} else {
+				accountLogin = "installation-" + installation.InstallationID
+			}
 		}
 		
 		responses[i] = &InstallationResponse{
@@ -234,12 +243,21 @@ func (s *Service) LinkInstallationToUser(ctx context.Context, userID uint, insta
 			// Try to get installation info from GitHub API using user token
 			installationData, fetchErr := s.fetchInstallationInfo(ctx, installationID)
 			if fetchErr != nil {
-				// If we can't get real data, create a basic record
-				installationData = &Installation{
-					InstallationID: installationID,
-					AccountLogin:   "GitHub App Installation",
-					AccountType:    "User",
-					Permissions:    "{}",
+				// If we can't get real data, try to guess from user's repos
+				if realLogin, guessErr := s.guessAccountLoginFromRepos(ctx); guessErr == nil && realLogin != "" {
+					installationData = &Installation{
+						InstallationID: installationID,
+						AccountLogin:   realLogin,
+						AccountType:    "User",
+						Permissions:    "{}",
+					}
+				} else {
+					installationData = &Installation{
+						InstallationID: installationID,
+						AccountLogin:   "installation-" + installationID,
+						AccountType:    "User",
+						Permissions:    "{}",
+					}
 				}
 			}
 			
@@ -258,13 +276,64 @@ func (s *Service) LinkInstallationToUser(ctx context.Context, userID uint, insta
 
 // fetchInstallationInfo tries to get installation info from GitHub API
 func (s *Service) fetchInstallationInfo(ctx context.Context, installationID string) (*Installation, error) {
-	// Try to get installation info from GitHub API
-	// For now, we'll return basic info since GitHub App token setup is complex
+	// GitHub API로부터 실제 계정 정보를 가져오려 시도
+	// 현재는 사용자의 첫 번째 repo owner name을 사용해서 추정
+	accountLogin, err := s.guessAccountLoginFromRepos(ctx)
+	if err != nil || accountLogin == "" {
+		accountLogin = "installation-" + installationID
+	}
+	
 	return &Installation{
 		InstallationID: installationID,
-		AccountLogin:   "GitHub Installation " + installationID,
+		AccountLogin:   accountLogin,
 		AccountType:    "User",
 		Permissions:    "{}",
 	}, nil
+}
+
+// guessAccountLoginFromRepos tries to guess the account login from user's repositories
+func (s *Service) guessAccountLoginFromRepos(ctx context.Context) (string, error) {
+	// 사용자의 repository들을 가져와서 가장 많이 나오는 owner name 추정
+	opts := &github.RepositoryListOptions{
+		ListOptions: github.ListOptions{PerPage: 10},
+	}
+	
+	repos, _, err := s.client.Repositories.List(ctx, "", opts)
+	if err != nil {
+		return "", err
+	}
+	
+	// owner 이름들을 count해서 가장 많이 나오는 것 선택
+	ownerCount := make(map[string]int)
+	for _, repo := range repos {
+		if repo.GetOwner() != nil {
+			ownerName := repo.GetOwner().GetLogin()
+			ownerCount[ownerName]++
+		}
+	}
+	
+	// 가장 많이 나오는 owner name 반환
+	maxCount := 0
+	mostFrequentOwner := ""
+	for owner, count := range ownerCount {
+		if count > maxCount {
+			maxCount = count
+			mostFrequentOwner = owner
+		}
+	}
+	
+	return mostFrequentOwner, nil
+}
+
+// updateInstallationLogin updates installation account login in database
+func (s *Service) updateInstallationLogin(ctx context.Context, installationID, accountLogin string) {
+	// installation을 찾아서 account login 업데이트
+	installation, err := s.repo.FindByInstallationID(ctx, installationID)
+	if err != nil {
+		return // 에러 무시 (비동기 업데이트)
+	}
+	
+	installation.AccountLogin = accountLogin
+	s.repo.SaveInstallation(ctx, installation) // 에러 무시 (비동기)
 }
 
